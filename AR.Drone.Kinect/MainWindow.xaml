@@ -66,7 +66,7 @@
             </StatusBarItem>
         </StatusBar>
         <Image Grid.Row="2" Height="19" HorizontalAlignment="Left" Margin="585,3,0,0" Name="image1" Stretch="Fill" VerticalAlignment="Top" Width="21" Source="/SkeletonBasics-WPF;component/Images/voice.jpg" />
-        <TextBlock Grid.Row="2" Height="23" HorizontalAlignment="Left" Margin="616,3,0,0" Name="textBlock1" Text="Land off" Foreground="{StaticResource MediumGreyBrush}" VerticalAlignment="Top" Width="112" />
+        <TextBlock Grid.Row="2" Height="23" HorizontalAlignment="Left" Margin="616,3,0,0" Name="textBlock1" Text="Take off" Foreground="{StaticResource MediumGreyBrush}" VerticalAlignment="Top" Width="112" />
         <TextBlock Height="23" HorizontalAlignment="Left" Margin="616,21,0,0" Name="textBlock2" Text="Stop" Foreground="{StaticResource MediumGreyBrush}" VerticalAlignment="Top" Width="112" Grid.Row="2" />
         <Image Height="19" HorizontalAlignment="Left" Margin="585,21,0,0" Name="image2" Source="/SkeletonBasics-WPF;component/Images/voice.jpg" Stretch="Fill" VerticalAlignment="Top" Width="21" Grid.Row="2" />
         <TextBlock Height="20" HorizontalAlignment="Left" Margin="628,24,0,0" Name="textBlock3" Text="Arthur Schwaiger" Foreground="{StaticResource MediumGreyBrush}" VerticalAlignment="Top" Width="100" />

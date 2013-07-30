@@ -23,16 +23,31 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
     using Microsoft.Speech.Recognition;
     using Microsoft.Kinect;
     using System.Speech.Synthesis;
-    using AR.Drone.Infrastructure;
+    using System.Linq.Expressions;
+    using System.Reflection;
+    using AR.Drone.Client;
+    using AR.Drone.Client.Commands;
+    using AR.Drone.Client.Configuration;
+    using AR.Drone.Client.Configuration.Sections;
+    using AR.Drone.Data;
+    using AR.Drone.Data.Navigation.Native;
+    using AR.Drone.Media;
+    using AR.Drone.Video;
 
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
     public partial class MainWindow : Window
     {
-        private SerialPort serialPort = new SerialPort();
-        long timeLastUpdateSerial = DateTime.Now.Ticks / 10000;
-        int frequenceUpdate = 100; // Fréquence d'update du Serial en millisecondes
+        private readonly DroneClient _droneClient;
+        private readonly PacketRecorder _packetRecorderWorker;
+        private readonly VideoPacketDecoderWorker _videoPacketDecoderWorker;
+        private uint _frameNumber;
+        private VideoFrame _frame;
+        //private Bitmap _frameBitmap;
+        private NavigationPacket _navigationPacket;
+        long timeLastUpdateSerial = DateTime.Now.Ticks / 10000; // Time since last update form kinect gesture to AR Drone
+        int frequenceUpdate = 100; // Update Frequency for Kinect gestures to AR Drone
         /// <summary>
         /// Width of output drawing
         /// </summary>
@@ -135,16 +150,94 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
         {
             InitializeComponent();
 
-            synthResponses.Add("Yes sir");
-            synthResponses.Add("Alright");
-            synthResponses.Add("Done sir");
+            // Speech synth Initialization
+            //TODO: Check synth initialize result
+            InitializeSynth();
 
-            synth = new SpeechSynthesizer();
-            synth.SetOutputToDefaultAudioDevice();
-            synth.SelectVoiceByHints(VoiceGender.Male, VoiceAge.Child);
+            // AR Drone Initialization
+            _videoPacketDecoderWorker = new VideoPacketDecoderWorker(AR.Drone.Video.PixelFormat.BGR24, true, OnVideoPacketDecoded);
+            _videoPacketDecoderWorker.Start();
 
-            synth.Speak("Kinect AR drone initializing...");
-            synth.Speak("Say ... DRONE, to enable voice command");
+            string path = string.Format("flight_{0:yyyy-MM-dd-HH-mm}.ardrone", DateTime.Now);
+            var stream = new FileStream(path, FileMode.OpenOrCreate);
+            _packetRecorderWorker = new PacketRecorder(stream);
+            _packetRecorderWorker.Start();
+
+            _droneClient = new DroneClient();
+            _droneClient.NavigationPacketAcquired += OnNavigationPacketAcquired;
+            _droneClient.VideoPacketAcquired += OnVideoPacketAcquired;
+            _droneClient.ConfigurationUpdated += OnConfigurationUpdated;
+            _droneClient.Active = true;
+
+            //tmrStateUpdate.Enabled = true;
+            //tmrVideoUpdate.Enabled = true;
+
+        }
+
+        protected Boolean InitializeSynth()
+        {
+            try
+            {
+                synthResponses.Add("Yes sir");
+                synthResponses.Add("Alright");
+                synthResponses.Add("Done sir");
+
+                synth = new SpeechSynthesizer();
+                synth.SetOutputToDefaultAudioDevice();
+                synth.SelectVoiceByHints(VoiceGender.Male, VoiceAge.Child);
+
+                synth.Speak("Kinect AR drone initializing...");
+                synth.Speak("Say ... DRONE, to enable voice command");
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                return false;
+            }
+
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            _droneClient.Dispose();
+            _videoPacketDecoderWorker.Dispose();
+            _packetRecorderWorker.Dispose();
+
+            base.OnClosed(e);
+        }
+
+        private void OnNavigationPacketAcquired(NavigationPacket packet)
+        {
+            if (_packetRecorderWorker.IsAlive)
+                _packetRecorderWorker.EnqueuePacket(packet);
+
+            _navigationPacket = packet;
+        }
+
+        private void OnVideoPacketAcquired(VideoPacket packet)
+        {
+            if (_packetRecorderWorker.IsAlive)
+                _packetRecorderWorker.EnqueuePacket(packet);
+            if (_videoPacketDecoderWorker.IsAlive)
+                _videoPacketDecoderWorker.EnqueuePacket(packet);
+        }
+
+        private void OnVideoPacketDecoded(VideoFrame frame)
+        {
+            _frame = frame;
+        }
+
+        private void OnConfigurationUpdated(DroneConfiguration configuration)
+        {
+            if (configuration.Video.Codec != VideoCodecType.H264_360P_SLRS ||
+                configuration.Video.MaxBitrate != 100 ||
+                configuration.Video.BitrateCtrlMode != VideoBitrateControlMode.Dynamic)
+            {
+                _droneClient.Send(configuration.Video.Codec.Set(VideoCodecType.H264_360P_SLRS).ToCommand());
+                _droneClient.Send(configuration.Video.MaxBitrate.Set(100).ToCommand());
+                _droneClient.Send(configuration.Video.BitrateCtrlMode.Set(VideoBitrateControlMode.Dynamic).ToCommand());
+            }
         }
 
         /// <summary>
@@ -536,6 +629,8 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
                             this.randomResponse = getRandomResponse();
                             synth.Speak(this.randomResponse + ", take off!");
 
+                            _droneClient.Takeoff();
+
                             commandEnabled = false;
                         }
                         break;
@@ -546,6 +641,8 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
                         {
                             this.randomResponse = getRandomResponse();
                             synth.Speak(this.randomResponse + ", stop Drone.");
+
+                            _droneClient.Land();
 
                             commandEnabled = false;
                         }
