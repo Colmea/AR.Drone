@@ -30,6 +30,22 @@ git submodule update --init
 
 - Build AR.Drone solution with MonoDevelop, VS2010 or VS2012.
 
+## Kinect Usage
+
+The solution includes WPF application - AR.Drone.Kinect, wich let you control your AR Drone with your Kinect.
+Plug your Kinect before run application. Then wait for speech synthetizer initialization.
+
+/!\ *Stay far away from AR Drone when running application, especially if you're inside. Otherwise, voice commands are not detected due to noise* /!\
+
+### Kinect voice commands
+
+To control your AR Drone with voice commands, say "DRONE" to enable voice command +before each command+ (protection for misunderstood words).
+
+Here is a list of available commands:
+- *"Take off"* : To enable drone and take off.
+- *"Stop"* : To disable drone and land.
+
+
 ## Usage
 
 The solution includes Winform application - AR.Drone.WinApp, it provides minimalistic interface 
